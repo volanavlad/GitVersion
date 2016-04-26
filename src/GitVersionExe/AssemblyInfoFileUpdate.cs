@@ -1,11 +1,10 @@
 namespace GitVersion
 {
-    using Helpers;
     using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Text.RegularExpressions;
+    using GitVersion.Helpers;
     using GitVersion.VersionAssemblyInfoResources;
 
     class AssemblyInfoFileUpdate : IDisposable
@@ -21,17 +20,6 @@ namespace GitVersion
                 Console.WriteLine("Updating assembly info files");
 
             var assemblyInfoFiles = GetAssemblyInfoFiles(workingDirectory, args, fileSystem);
-            Console.WriteLine("Found {0} files", assemblyInfoFiles.Count());
-
-            var assemblyVersion = variables.AssemblySemVer;
-            var assemblyVersionRegex = new Regex(@"AssemblyVersion\(""[^""]*""\)");
-            var assemblyVersionString = string.Format("AssemblyVersion(\"{0}\")", assemblyVersion);
-            var assemblyInfoVersion = variables.InformationalVersion;
-            var assemblyInfoVersionRegex = new Regex(@"AssemblyInformationalVersion\(""[^""]*""\)");
-            var assemblyInfoVersionString = string.Format("AssemblyInformationalVersion(\"{0}\")", assemblyInfoVersion);
-            var assemblyFileVersion = variables.MajorMinorPatch + ".0";
-            var assemblyFileVersionRegex = new Regex(@"AssemblyFileVersion\(""[^""]*""\)");
-            var assemblyFileVersionString = string.Format("AssemblyFileVersion(\"{0}\")", assemblyFileVersion);
 
             foreach (var assemblyInfoFile in assemblyInfoFiles.Select(f => new FileInfo(f)))
             {
@@ -46,31 +34,17 @@ namespace GitVersion
                 });
                 cleanupBackupTasks.Add(() => fileSystem.Delete(backupAssemblyInfo));
 
-                var fileContents = fileSystem.ReadAllText(assemblyInfoFile.FullName);
-                fileContents = ReplaceOrAppend(assemblyVersionRegex, fileContents, assemblyVersionString);
-                fileContents = ReplaceOrAppend(assemblyInfoVersionRegex, fileContents, assemblyInfoVersionString);
-                fileContents = ReplaceOrAppend(assemblyFileVersionRegex, fileContents, assemblyFileVersionString);
+                var assemblyVersion = variables.AssemblySemVer;
+                var assemblyInfoVersion = variables.InformationalVersion;
+                var assemblyFileVersion = variables.MajorMinorPatch + ".0";
+                var fileContents = fileSystem.ReadAllText(assemblyInfoFile.FullName)
+                    .RegexReplace(@"AssemblyVersion\(""[^""]*""\)", string.Format("AssemblyVersion(\"{0}\")", assemblyVersion))
+                    .RegexReplace(@"AssemblyInformationalVersion\(""[^""]*""\)", string.Format("AssemblyInformationalVersion(\"{0}\")", assemblyInfoVersion))
+                    .RegexReplace(@"AssemblyFileVersion\(""[^""]*""\)", string.Format("AssemblyFileVersion(\"{0}\")", assemblyFileVersion));
 
                 fileSystem.WriteAllText(assemblyInfoFile.FullName, fileContents);
             }
         }
-
-        static string ReplaceOrAppend(Regex replaceRegex, string inputString, string replaceString)
-        {
-            const string assemblyAddFormat = "[assembly: {0}]";
-
-            if (replaceRegex.IsMatch(inputString))
-            {
-                inputString = replaceRegex.Replace(inputString, replaceString);
-            }
-            else
-            {
-                inputString += Environment.NewLine + string.Format(assemblyAddFormat, replaceString);
-            }
-
-            return inputString;
-        }
-
 
         static IEnumerable<string> GetAssemblyInfoFiles(string workingDirectory, Arguments args, IFileSystem fileSystem)
         {
