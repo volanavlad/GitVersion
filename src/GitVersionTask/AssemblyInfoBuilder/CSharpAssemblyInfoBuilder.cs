@@ -52,7 +52,7 @@ namespace {4}
 
     static string GenerateStaticVariableMembers(IList<KeyValuePair<string, string>> vars)
     {
-        return GenerateMembers(vars, "        public static string {0} = \"{1}\";");
+        return GenerateMembers(vars, "        public const string {0} = \"{1}\";");
     }
 
 
